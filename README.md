@@ -9,6 +9,8 @@ This is a small Python script designed to parse Microsoft Feedback Forms for But
 Prerequisites: Python >= v3.11
 
 Run `pip install -r requirements.txt` inside the project directory to install all external libraries.
+- pandas
+- openpyxl
 
 ## Usage
 
