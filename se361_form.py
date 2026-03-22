@@ -48,6 +48,9 @@ class SE361_Form(Form):
 
     def __init__(self, input_file_path):
         super().__init__(input_file_path)
+        self.peer_avg = -1
+        self.stakeholder_avg = -1
+        self.final_avg = -1
         self._read_path()
 
     def print_forms(self):
@@ -58,7 +61,7 @@ class SE361_Form(Form):
         for section, section_df in self.data_frame.groupby("Section", sort=False):
             # Loop through each individual team's review
             for team_name, team_df in section_df.groupby("Team_Name", sort=False):
-                reordered_df = self._reorder_evaluator_and_average_rows(team_df)
+                reordered_df = self._collect_and_order_rows(team_df)
 
                 # Parse data frame for output filename data
                 team_name = team_name.replace("Team", "").strip()
@@ -95,36 +98,56 @@ class SE361_Form(Form):
             (self.data_frame.iloc[:, SE361_Form.sprint_num_idx] == sprint_string)
         ]
 
-    def _reorder_evaluator_and_average_rows(self, data_frame):
+    def _collect_and_order_rows(self, data_frame):
         """
-        Combines peer, peer average score, empty,
-        stakeholder, and stakeholder average score rows
+        Combines peer, stakeholder, and average rows
         """
-        peer_rows, peer_avg_row = SE361_Form._get_peer_rows(data_frame)
-        stakeholder_rows, stakeholder_avg_row = SE361_Form._get_stakeholder_rows(
-            data_frame
-        )
+        peer_rows = self._get_peer_rows(data_frame)
+        if len(peer_rows) > 0:
+            peer_avg_row = self._get_peer_avg_row(peer_rows)
 
-        # Create two blank rows matching dataframe structure
+        stakeholder_rows = self._get_stakeholder_rows(data_frame)
+        if len(stakeholder_rows) > 0:
+            stakeholder_avg_row = self._get_stakeholder_avg_row(stakeholder_rows)
+
+        final_avg_row = self._get_final_avg_row(data_frame)
+
+        # Create blank rows matching data frame structure
         blank_row = self._get_blank_rows(1)
 
         # Return final ordered data frame
         return pandas.concat(
-            [peer_rows, peer_avg_row, blank_row, stakeholder_rows, stakeholder_avg_row],
+            [peer_rows, peer_avg_row, blank_row, stakeholder_rows, stakeholder_avg_row, blank_row, final_avg_row],
             ignore_index=True,
         )
 
-    def _get_peer_rows(data_frame):
+    def _get_peer_rows(self, data_frame):
         df = data_frame
         peer_rows = df[df["Evaluator"] == "Peer"]
-        peer_avg_row = SE361_Form._get_avg_row(peer_rows)
-        return peer_rows, peer_avg_row
+        return peer_rows
 
-    def _get_stakeholder_rows(data_frame):
+    def _get_peer_avg_row(self, rows):
+        self.peer_avg = SE361_Form._calculate_average_score(rows)
+        return SE361_Form._form_avg_row(self.peer_avg, rows)
+
+    def _get_stakeholder_rows(self, data_frame):
         df = data_frame
         stakeholder_rows = df[df["Evaluator"] == "Stakeholder"]
-        stakeholder_avg_row = SE361_Form._get_avg_row(stakeholder_rows)
-        return stakeholder_rows, stakeholder_avg_row
+        return stakeholder_rows
+
+    def _get_stakeholder_avg_row(self, rows):
+        self.stakeholder_avg = SE361_Form._calculate_average_score(rows)
+        return SE361_Form._form_avg_row(self.peer_avg, rows)
+
+    def _get_final_avg_row(self, data_frame):
+        df = data_frame
+        avg = (self.peer_avg + self.stakeholder_avg) / 2
+        self.final_avg = round(avg, 3)
+        return SE361_Form._form_avg_row(self.final_avg, df)
+
+    def _append_blank_rows(self, rows, row_count=1):
+        blank_rows = self._get_blank_rows(row_count)
+        return pandas.concat([rows, blank_rows], ignore_index=True)
 
     def _get_blank_rows(self, row_count=1):
         df = self.data_frame
@@ -133,8 +156,7 @@ class SE361_Form(Form):
         )
         return blank_rows
 
-    def _get_avg_row(rows):
-        avg = SE361_Form._calculate_average_score(rows)
+    def _form_avg_row(avg, rows):
         avg_row = {col: "" for col in rows.columns}
         avg_row["Team_Leader"] = "AVERAGE SCORE"
         avg_row["Scores"] = avg
