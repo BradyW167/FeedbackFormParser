@@ -102,28 +102,40 @@ class SE361_Form(Form):
         """
         Combines peer, stakeholder, and average rows
         """
-        peer_rows = self._get_peer_rows(data_frame)
-        if len(peer_rows) > 0:
-            peer_avg_row = self._get_peer_avg_row(peer_rows)
-
-        stakeholder_rows = self._get_stakeholder_rows(data_frame)
-        if len(stakeholder_rows) > 0:
-            stakeholder_avg_row = self._get_stakeholder_avg_row(stakeholder_rows)
-
-        final_avg_row = self._get_final_avg_row(data_frame)
+        ordered_rows = None
 
         # Create blank rows matching data frame structure
         blank_row = self._get_blank_rows(1)
 
+        peer_rows = self._get_peer_rows(data_frame)
+        if len(peer_rows) > 0:
+            peer_avg_row = self._get_peer_avg_row(peer_rows)
+
+            ordered_rows = pandas.concat(
+                [peer_rows, peer_avg_row, blank_row], ignore_index=True
+            )
+
+        stakeholder_rows = self._get_stakeholder_rows(data_frame)
+        if len(stakeholder_rows) > 0:
+            stakeholder_avg_row = self._get_stakeholder_avg_row(stakeholder_rows)
+            final_avg_row = self._get_final_avg_row(data_frame)
+
+            ordered_rows = pandas.concat(
+                [
+                    ordered_rows,
+                    stakeholder_rows,
+                    stakeholder_avg_row,
+                    blank_row,
+                    final_avg_row,
+                ],
+                ignore_index=True,
+            )
+
         # Return final ordered data frame
-        return pandas.concat(
-            [peer_rows, peer_avg_row, blank_row, stakeholder_rows, stakeholder_avg_row, blank_row, final_avg_row],
-            ignore_index=True,
-        )
+        return ordered_rows
 
     def _get_peer_rows(self, data_frame):
-        df = data_frame
-        peer_rows = df[df["Evaluator"] == "Peer"]
+        peer_rows = data_frame[data_frame["Evaluator"] == "Peer"]
         return peer_rows
 
     def _get_peer_avg_row(self, rows):
@@ -131,19 +143,17 @@ class SE361_Form(Form):
         return SE361_Form._form_avg_row(self.peer_avg, rows)
 
     def _get_stakeholder_rows(self, data_frame):
-        df = data_frame
-        stakeholder_rows = df[df["Evaluator"] == "Stakeholder"]
+        stakeholder_rows = data_frame[data_frame["Evaluator"] == "Stakeholder"]
         return stakeholder_rows
 
     def _get_stakeholder_avg_row(self, rows):
         self.stakeholder_avg = SE361_Form._calculate_average_score(rows)
-        return SE361_Form._form_avg_row(self.peer_avg, rows)
+        return SE361_Form._form_avg_row(self.stakeholder_avg, rows)
 
     def _get_final_avg_row(self, data_frame):
-        df = data_frame
         avg = (self.peer_avg + self.stakeholder_avg) / 2
         self.final_avg = round(avg, 3)
-        return SE361_Form._form_avg_row(self.final_avg, df)
+        return SE361_Form._form_avg_row(self.final_avg, data_frame)
 
     def _append_blank_rows(self, rows, row_count=1):
         blank_rows = self._get_blank_rows(row_count)

@@ -18,7 +18,7 @@ from se361_form import SE361_Form
 DATE_FILTER = "2026-02-24"
 
 # Input sprint number to filter submissions by
-SPRINT_NUM_FILTER = "2"
+SPRINT_NUM_FILTER = "3"
 
 # ---------------------- END OPTIONS ---------------------
 
